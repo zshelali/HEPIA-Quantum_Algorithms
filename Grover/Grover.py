@@ -1,18 +1,10 @@
 
 import matplotlib.pyplot as plt
-import random as rndm
-import numpy as np
-import random as rndm
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from qiskit import QuantumCircuit
 from qiskit import transpile
-from qiskit.circuit.library import RealAmplitudes
-from qiskit.quantum_info import SparsePauliOp, Statevector
 from qiskit_aer import AerSimulator
-from qiskit.visualization import plot_state_city, plot_state_hinton
-from typing import List
-from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel, depolarizing_error, ReadoutError
-from math import floor, log2, pi, ceil, sqrt
+from qiskit_aer.noise import NoiseModel, depolarizing_error
+from math import floor, pi,sqrt, ceil, log2
 
 
 def get_result(qc):
@@ -56,6 +48,46 @@ def plot_grover_results(sorted_items, target, nb_qubits):
     plt.grid(axis="y", linestyle="--", alpha=0.6)
     plt.tight_layout()
     plt.show()
+
+def load_array(arr):
+    """"
+    Loads an array into a cicruit
+
+    Upon measuring with Qiskit, the result will look like: |value> ⊗ |index>  
+
+    Parameters
+    ----------
+
+    qc: QuantumCircuit
+        Target quantum circuit, on which the array will be loaded
+    
+    arr: List[int]
+        Array to load
+    """
+    arr_length = len(arr)
+    if arr_length > 0:
+        index_qubits = ceil(log2(arr_length))
+        value_qubits = ceil(log2(max(arr) + 1)) 
+        qc = QuantumCircuit(ceil(log2(arr_length)) + ceil(log2(max(arr) + 1)))
+    else:
+        return QuantumCircuit()
+    control_indices = []
+    assert(qc.num_qubits == index_qubits + value_qubits)
+    for q, o in enumerate(arr):
+        bin_q = format(q, f"0{index_qubits}b")[::-1] # index
+        bin_o = format(o, f"0{value_qubits}b")[::-1] # output
+        for index1, char1 in enumerate(bin_o):
+            if char1 == "1":
+                for index2, char2 in enumerate(bin_q):
+                    if char2 == "0":
+                        control_indices.append(index2)
+                for ones in control_indices:
+                    qc.x(ones)
+                qc.mcx([xyz for xyz in range(index_qubits)], index1+index_qubits)
+                for ones in control_indices:
+                    qc.x(ones)
+                control_indices = []
+    return qc
 
 
 def oracle(nb_qubits: int, value: int) -> QuantumCircuit:
@@ -195,4 +227,9 @@ def grover(nb_qubits: int, x: int):
 
     qc.measure_all()
 
-    return qc
+    simulator = AerSimulator()
+    circ = transpile(qc, simulator)
+    result = simulator.run(circ).result()
+    counts = result.get_counts(circ)
+
+    return counts
