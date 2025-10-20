@@ -30,6 +30,7 @@ def qft(n, swap=True, inverse=False):
         if inverse == True:
             for others in range(current+1, n):
                 qc.cp(theta=-2*pi/2**(others-current+1), control_qubit=others, target_qubit=current)
+                qc.name+="_dg" 
         else:
             for others in range(current+1, n):
                 qc.cp(theta=2*pi/2**(others-current+1), control_qubit=others, target_qubit=current)
@@ -37,12 +38,12 @@ def qft(n, swap=True, inverse=False):
     if swap == True:
         for j in range(n//2):
             qc.swap(j, n-1-j)
-            qc.name+="_dg" 
+            
 
     return qc
 
 
-def get_result(qc):
+def get_result(qc, shots=100):
 
     """
     Simulate a quantum circuit and return its measurement outcomes.
@@ -65,7 +66,7 @@ def get_result(qc):
     """
     simulator = AerSimulator()
     compiled = transpile(qc, simulator)
-    return simulator.run(compiled, shots=100).result().get_counts()
+    return simulator.run(compiled, shots=shots).result().get_counts()
 
 def get_result_with_noise(qc):
     # https://quantum.cloud.ibm.com/docs/en/guides/build-noise-models
