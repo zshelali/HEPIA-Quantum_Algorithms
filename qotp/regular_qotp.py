@@ -1,10 +1,11 @@
 import quantum_tools as qt
 import random as rand
-from qiskit import ClassicalRegister, QuantumCircuit
+from qiskit import QuantumCircuit
 from math import pi
-from qiskit.circuit.library import QFT
+from rich.traceback import install
 
-from qiskit.circuit.library import DraperQFTAdder
+install()
+
 
 class Client:
     def __init__(self):
@@ -13,13 +14,10 @@ class Client:
     def load_int(self, val):
         bin_len = max(2, val.bit_length())
         val_bin = format(val, f"0{bin_len}b")[::-1]
-        print("Bin val:", val_bin)
-        print("bit_len:", val.bit_length())
         qc = QuantumCircuit(max(2, bin_len))
         for i, bit in enumerate(val_bin):
             if bit == "1":
                 qc.x(i)
-        print(qc)
         return qc
 
     def encrypt(self, psi):
@@ -65,22 +63,17 @@ class Server:
         qc = QuantumCircuit(4, 2)
         qc.append(x, [0, 1])
         qc.append(y, [2, 3])
-        # qc.append(qt.qft(2, inverse=False, swap=True), [2, 3])
-        qc.append(QFT(2, inverse=False, do_swaps=False), [2, 3])
+        qc.append(qt.qft(2, inverse=True, swap=False), [2, 3])
 
         for i in range(n):
             for j in range(i + 2, n):
                 theta = 2**(i)*pi/(2**(j-(n//2)))
-                print(f"i: {i}, j: {j}, theta: {theta}")
                 qc.cp(theta=theta, control_qubit=i, target_qubit=j)
-        # qc.append(qt.qft(2, inverse=True, swap=True), [2, 3])
-        qc.append(QFT(2, inverse=True, do_swaps=False), [2, 3])
+        qc.append(qt.qft(2, inverse=False, swap=False), [2, 3])
 
         qc.measure([2, 3], [0, 1])
         return qc
     
-
-
 
 def adder_pipeline(x, y):
         """
@@ -90,12 +83,13 @@ def adder_pipeline(x, y):
         qx = cl.load_int(x)
         qy = cl.load_int(y)
         my_addition = Server.two_qubit_adder(qx, qy)
-        my_addition.draw("mpl", filename="my_adder_test.png", fold=False)
-        print(qt.get_result(my_addition, shots=1024))
-        return qt
+        return int(list(qt.get_result(my_addition, shots=100).keys())[0], 2)
 
-adder_pipeline(0, 3)
+print(adder_pipeline(1, 2))
 
+#for i in range(4):
+#    for j in range(4):
+#        print(adder_pipeline(i, j))
 
 
 # x = cl.encrypt(1)
