@@ -6,6 +6,7 @@ from math import pi
 def qft(n, swap=True, inverse=False):
     """
     Build a Quantum Fourier Transform (QFT) circuit.
+    The `inverse=False` here is qiskit's `inverse=True`.
 
     Args:
         n (int): Number of qubits.
@@ -27,18 +28,15 @@ def qft(n, swap=True, inverse=False):
     for current in range(n):
         qc.barrier()
         qc.h(current)
-        if inverse == True:
-            for others in range(current+1, n):
-                qc.cp(theta=-2*pi/2**(others-current+1), control_qubit=others, target_qubit=current)
-                qc.name+="_dg" 
-        else:
-            for others in range(current+1, n):
-                qc.cp(theta=2*pi/2**(others-current+1), control_qubit=others, target_qubit=current)
+        for others in range(current+1, n):
+            qc.cp(theta=-2*pi/2**(others-current+1), control_qubit=others, target_qubit=current)
 
     if swap == True:
         for j in range(n//2):
             qc.swap(j, n-1-j)
-            
+           
+    if inverse == True: 
+        return qc.inverse()
 
     return qc
 
