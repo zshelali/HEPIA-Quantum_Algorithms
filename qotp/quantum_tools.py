@@ -38,11 +38,14 @@ def init():
         [1,  1,  1,  1],
         [1,  1j, -1, -1j],
         [1, -1,  1, -1],
-        [1, -1j, -1,  1]], complex)
+        [1, -1j, -1,  1]], complex),
+
+       "T": np.diag([1, np.exp(1j*pi/4)])
     }
 
+init()
 
-
+print(GATE["T"])
 
 def qft(n, swap=True, inverse=False):
     """
