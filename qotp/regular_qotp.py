@@ -1,7 +1,7 @@
+from qiskit.circuit import gate
 import quantum_tools as qt
 import random as random
 from qiskit import QuantumCircuit
-from math import pi
 import numpy as np
 from rich.traceback import install
 
@@ -10,9 +10,7 @@ qt.init()
 
 class Client:
     def __init__(self):
-        # self.local_key = []
-        # self.final_key = []
-        self.keys = {"x": {}, "y": {}}
+        self.keys = {}
 
     # def reset_key(self):
     #     self.local_key = []
@@ -21,95 +19,78 @@ class Client:
     def load_int(self, val):
         bin_len = max(2, val.bit_length())
         val_bin = format(val, f"0{bin_len}b")[::-1]
-        qc = QuantumCircuit(max(2, bin_len))
+        qc = QuantumCircuit(max(4, bin_len))
         for i, bit in enumerate(val_bin):
             if bit == "1":
                 qc.x(i)
         return qc
 
-    def encrypt(self, psi, reg):
+    def encrypt(self, psi, server):
         bin_len = max(2, psi.bit_length())
         val_bin = format(psi, f"0{bin_len}b")[::-1]
-        P = QuantumCircuit(max(2, bin_len))
+        num_qubits = server.get_num_qubits()
+        P = QuantumCircuit(max(4, bin_len))
         P.name = f"Encrypted: {psi}"
         # Encoding the binary value into the quantum register
         for i, bit in enumerate(val_bin):
             if bit == "1":
                 P.x(i)
-        for k in range(bin_len):
+        for k in range(num_qubits):
            a, b = random.randint(0, 1), random.randint(0, 1)
            if a == 1:
                P.x(k)
            if b == 1:
                P.z(k)
-           self.keys[reg][k] =  (a, b)
+           self.keys[k] =  (a, b)
         return P
 
-#    def get_local_key(self):
-#        return self.local_key
 
-    def decrypt(self, reg, psi):
-        # TODO: implement 
-        a_q3 = self.keys["y"][1][0]
-        a_q2 = self.keys["y"][0][0]
-        
-        m1 = int(psi[0]) ^ a_q3
-        m0 = int(psi[1]) ^ a_q2
+    def decrypt(self, psi_tilde):
+        res = list(psi_tilde)
+        for i, bit in enumerate(psi_tilde[::-1]):
+            res[i] = str((self.keys[i][0]) ^ int(bit))
+        return "".join(res[::-1])
+            
 
-        result = str(m1) + str(m0)
-        return int(result, 2)
-                          
+    @staticmethod
+    def get_qubit_index(qc, i, n):
+        return qc.find_bit(qc.data[i].qubits[n]).index
 
-    def update_key(self, reg):
-        """
-        Hardcoded for two_qubit_adder().
-        Follows the rules of the QOTP key updates for Clifford gates.
-        """
-        twoQubits = False
-        for i, (a, b) in self.keys[reg].items():
-            # QFT(2)
-            if i == 0: a, b = b, a # Hadamard
-            if i == 1: a, b = a, a ^ b # pi/2 rotation
-            if i == 2: a, b = b, a # Hadamard
-            # Rotations (Z updates are skipped for they do not have an impact.)
-            # Z
-            if i == 4: a, b = a, a ^ b # pi/2 rotation
-            # Z
-            # QFT(2) dg
-            if i == 6: a, b = b, a # Hadamard
-            if i == 7: a, b = a, a ^ b # -pi/2 rotation
-            if i == 8: a, b = b, a # Hadamard
-            self.keys[reg][i] = (a, b)
 
-    
-    def universal_key_updater(self, qc, reg):
+    def update_key(self, qc):
         """
         Updates QOTP private keys for circuits containing only Clifford gates.
         """
+        print(f"Before update, current state:\n{self.keys}")
         for i in range(len(qc.data)):
-            switch = qc.data[i].name
-            print("qubits", qc.qubits, "\n")
-            print("switch", switch, "\n")
-
-            if switch == "h":
+            gate_name = qc.data[i].name
+            if gate_name == "h":
+                a, b = self.keys[Client.get_qubit_index(qc, i, 0)]
                 a, b = b, a
-            if switch == "s":
+                self.keys[Client.get_qubit_index(qc, i, 0)] = a, b
+            if gate_name == "s":
+                a, b = self.keys[Client.get_qubit_index(qc, i, 0)]
                 a, b = a, a ^ b
-            if switch == "cx":
-                print(qc.data[i].qubits)
-
-            self.keys[reg][i] = (a, b)
-        print(f"Update key, current state:\n a = {a}, b = {b}")
-
-
-            
+                self.keys[Client.get_qubit_index(qc, i, 0)] = a, b
+            if gate_name == "cx":
+                ai, bi = self.keys[Client.get_qubit_index(qc, i, 0)]
+                aj, bj = self.keys[Client.get_qubit_index(qc, i, 1)]
+                ai, bi = ai, bi ^ bj
+                aj, bj = ai ^ aj, bj
+                self.keys[Client.get_qubit_index(qc, i, 0)] = ai, bi
+                self.keys[Client.get_qubit_index(qc, i, 1)] = aj, bj
+        
+        print(f"Update key, current state:\n{self.keys}")
 
 
 
 class Server:
     def __init__(self):
-        self.circuit = QuantumCircuit()
+        self.circuit = Server.random_circuit()
+        self.num_qubits = self.circuit.num_qubits
 
+    def get_num_qubits(self):
+        return self.num_qubits
     @staticmethod
     def two_qubit_adder(x, y):
         #TODO: universalize the function to take n odd and even.
@@ -128,14 +109,20 @@ class Server:
         qc.measure([2, 3], [0, 1])
         return qc
     
-    def random_circuit(self):
+    @staticmethod
+    def random_circuit():
+        """
+        Vizualise circuit @ https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,%22H%22],[1,1,%22%E2%80%A2%22,%22X%22],[1,1,1,%22X%22],[1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[0,1]}
+        """
         qc = QuantumCircuit(4)
+        qc.name = "Server circuit"
         qc.x(0)
-        qc.h(1)
-        qc.y(0)
-        qc.cx(2, 3)
+        qc.h(2)
+        qc.cx(0, 3)
         qc.x(3)
+        qc.h(2)
         return qc
+
 
 def adder_pipeline(x, y):
         """
@@ -147,22 +134,28 @@ def adder_pipeline(x, y):
         my_addition = Server.two_qubit_adder(qx, qy)
         return int(list(qt.get_result(my_addition, shots=100).keys())[0], 2)
 
-def encrypted_adder_pipeline(x, y):
+
+def pipe(p,shots=20):
+    results = []
+    for it in range(shots):
+        print(f"Test num {it}")
+        sv = Server()
         cl = Client()
-        qx = cl.encrypt(x, "x")
-        qy = cl.encrypt(y, "y")
-        addition = Server.two_qubit_adder(qx, qy)
-        cl.update_key("x")
-        cl.update_key("y")
-        psi_tilde = list(qt.get_result(addition, shots=100).keys())[0]
-        result = cl.decrypt("y", psi_tilde)
-        return result
+        x = cl.encrypt(p, sv)
+        server_circuit = sv.random_circuit()
+        x.append(server_circuit, [k for k in range(server_circuit.num_qubits)])
+        cl.update_key(server_circuit)
+        x.measure_all()
+        res = qt.get_result(x)
+        max_res = max(res, key=res.get)
+        decrypted_res = cl.decrypt(max_res)
+        results.append(decrypted_res)
 
+    return results
 
-sv = Server()
-cl = Client()
-circ = sv.random_circuit()
-cl.universal_key_updater(circ, "x")
+print("final result :", pipe(2, shots=20), "\n")
+
+# cl.update_key(circ)
 
 # A = qt.clifford(qt.GATE["QFT2"])["x_result"]
 # B = qt.clifford(qt.GATE["QFT2"])["z_result"]
@@ -208,4 +201,24 @@ cl.universal_key_updater(circ, "x")
 # qiskit_addition.draw("mpl", filename="qiskit_test.png", fold=False)
 #
 # 
+    # def update_key(self, reg):
+    #     """
+    #     Hardcoded for two_qubit_adder().
+    #     Follows the rules of the QOTP key updates for Clifford gates.
+    #     """
+    #     for i, (a, b) in self.keys[reg].items():
+    #         # QFT(2)
+    #         if i == 0: a, b = b, a # Hadamard
+    #         if i == 1: a, b = a, a ^ b # pi/2 rotation
+    #         if i == 2: a, b = b, a # Hadamard
+    #         # Rotations (Z updates are skipped for they do not have an impact.)
+    #         # Z
+    #         if i == 4: a, b = a, a ^ b # pi/2 rotation
+    #         # Z
+    #         # QFT(2) dg
+    #         if i == 6: a, b = b, a # Hadamard
+    #         if i == 7: a, b = a, a ^ b # -pi/2 rotation
+    #         if i == 8: a, b = b, a # Hadamard
+    #         self.keys[i] = (a, b)
+    #
 
