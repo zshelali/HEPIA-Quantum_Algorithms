@@ -70,7 +70,7 @@ class Client:
         """
         Updates QOTP private keys for circuits containing only Clifford gates.
         """
-        print(f"Before update, current state:\n{self.keys}")
+        # print(f"Before update, current state:\n{self.keys}")
         for i in range(len(qc.data)):
             gate_name = qc.data[i].name
             if gate_name == "h":
@@ -90,7 +90,7 @@ class Client:
                 self.keys[Client.get_qubit_index(qc, i, 0)] = ai, bi
                 self.keys[Client.get_qubit_index(qc, i, 1)] = aj, bj
         
-        print(f"Update key, current state:\n{self.keys}")
+        # print(f"Update key, current state:\n{self.keys}")
 
 
 
@@ -120,7 +120,7 @@ class Server:
 def pipe(p,shots=20):
     results = []
     for it in range(shots):
-        print(f"Test num {it}")
+        print(f"Iteration {it + 1}")
         sv = Server()
         cl = Client()
         x = cl.encrypt(p, sv)
@@ -135,4 +135,5 @@ def pipe(p,shots=20):
 
     return results
 
-print("final result :", pipe(5, shots=1), "\n")
+final_result = int(pipe(5, shots=1)[0])
+print("final result :",final_result , "\n")
