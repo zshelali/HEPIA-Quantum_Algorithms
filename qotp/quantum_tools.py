@@ -148,4 +148,20 @@ def clifford(u):
 
     return {"x_result": x_result, "z_result": z_result}
 
+def two_qubit_adder(x, y):
+    #TODO: universalize the function to take n odd and even.
+    n = 4
+    qc = QuantumCircuit(4, 2)
+    qc.append(x, [0, 1])
+    qc.append(y, [2, 3])
+    qc.append(qft(2, inverse=True, swap=False), [2, 3])
 
+    for i in range(n):
+        for j in range(i + 2, n):
+            theta = 2**(i)*np.pi/(2**(j-(n//2)))
+            qc.cp(theta=theta, control_qubit=i, target_qubit=j)
+    qc.append(qft(2, inverse=False, swap=False), [2, 3])
+
+    qc.measure([2, 3], [0, 1])
+    return qc
+ 

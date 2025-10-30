@@ -11,11 +11,10 @@ class Client:
     def __init__(self):
         self.keys = {}
 
-    # def reset_key(self):
-    #     self.local_key = []
-    #     self.final_key = []
-
     def load_int(self, val):
+        """
+        Loads an unencrypted integer into a circuit
+        """
         bin_len = max(2, val.bit_length())
         val_bin = format(val, f"0{bin_len}b")[::-1]
         qc = QuantumCircuit(max(4, bin_len))
@@ -25,6 +24,9 @@ class Client:
         return qc
 
     def encrypt(self, psi, server):
+        """
+        Equivalent to load_int but encrypts `psi`, and generates a key pair for each qubit in the server circuit.
+        """
         bin_len = max(2, psi.bit_length())
         val_bin = format(psi, f"0{bin_len}b")[::-1]
         num_qubits = server.get_num_qubits()
@@ -46,6 +48,7 @@ class Client:
 
     def decrypt(self, psi_tilde):
         """
+        Decrypts a measured state. 
         For a classical Z-basis measurement, only the X mask affects the outcome, 
         as Z is only a phase that is invisible when measured.
         """
@@ -57,6 +60,9 @@ class Client:
 
     @staticmethod
     def get_qubit_index(qc, i, n):
+        """
+        Returns the index of a qubit inside a QuantumCircuit
+        """
         return qc.find_bit(qc.data[i].qubits[n]).index
 
 
@@ -95,28 +101,11 @@ class Server:
 
     def get_num_qubits(self):
         return self.num_qubits
-    @staticmethod
-    def two_qubit_adder(x, y):
-        #TODO: universalize the function to take n odd and even.
-        n = 4
-        qc = QuantumCircuit(4, 2)
-        qc.append(x, [0, 1])
-        qc.append(y, [2, 3])
-        qc.append(qt.qft(2, inverse=True, swap=False), [2, 3])
-
-        for i in range(n):
-            for j in range(i + 2, n):
-                theta = 2**(i)*np.pi/(2**(j-(n//2)))
-                qc.cp(theta=theta, control_qubit=i, target_qubit=j)
-        qc.append(qt.qft(2, inverse=False, swap=False), [2, 3])
-
-        qc.measure([2, 3], [0, 1])
-        return qc
-    
+   
     @staticmethod
     def random_circuit():
         """
-        Visualize circuit @ https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,%22H%22],[1,1,%22%E2%80%A2%22,%22X%22],[1,1,1,%22X%22],[1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[0,1]}
+        Visualize circuit @ https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,1,%22H%22],[%22%E2%80%A2%22,1,1,%22X%22],[1,1,1,%22X%22],[1,1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[1,0,1]}
         """
         qc = QuantumCircuit(4)
         qc.name = "Server circuit"
@@ -126,17 +115,6 @@ class Server:
         qc.x(3)
         qc.h(2)
         return qc
-
-
-def adder_pipeline(x, y):
-        """
-        Two qubits adder without encryption (for now)
-        """
-        cl = Client()
-        qx = cl.load_int(x)
-        qy = cl.load_int(y)
-        my_addition = Server.two_qubit_adder(qx, qy)
-        return int(list(qt.get_result(my_addition, shots=100).keys())[0], 2)
 
 
 def pipe(p,shots=20):
@@ -157,4 +135,4 @@ def pipe(p,shots=20):
 
     return results
 
-print("final result :", pipe(5, shots=10), "\n")
+print("final result :", pipe(5, shots=1), "\n")
