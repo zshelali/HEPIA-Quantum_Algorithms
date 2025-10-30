@@ -1,4 +1,3 @@
-from qiskit.circuit import gate
 import quantum_tools as qt
 import random as random
 from qiskit import QuantumCircuit
@@ -46,6 +45,10 @@ class Client:
 
 
     def decrypt(self, psi_tilde):
+        """
+        For a classical Z-basis measurement, only the X mask affects the outcome, 
+        as Z is only a phase that is invisible when measured.
+        """
         res = list(psi_tilde)
         for i, bit in enumerate(psi_tilde[::-1]):
             res[i] = str((self.keys[i][0]) ^ int(bit))
@@ -75,6 +78,7 @@ class Client:
             if gate_name == "cx":
                 ai, bi = self.keys[Client.get_qubit_index(qc, i, 0)]
                 aj, bj = self.keys[Client.get_qubit_index(qc, i, 1)]
+
                 ai, bi = ai, bi ^ bj
                 aj, bj = ai ^ aj, bj
                 self.keys[Client.get_qubit_index(qc, i, 0)] = ai, bi
@@ -112,7 +116,7 @@ class Server:
     @staticmethod
     def random_circuit():
         """
-        Vizualise circuit @ https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,%22H%22],[1,1,%22%E2%80%A2%22,%22X%22],[1,1,1,%22X%22],[1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[0,1]}
+        Visualize circuit @ https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,%22H%22],[1,1,%22%E2%80%A2%22,%22X%22],[1,1,1,%22X%22],[1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[0,1]}
         """
         qc = QuantumCircuit(4)
         qc.name = "Server circuit"
@@ -146,11 +150,11 @@ def pipe(p,shots=20):
         x.append(server_circuit, [k for k in range(server_circuit.num_qubits)])
         cl.update_key(server_circuit)
         x.measure_all()
-        res = qt.get_result(x)
+        res = qt.get_result_with_noise(x)
         max_res = max(res, key=res.get)
         decrypted_res = cl.decrypt(max_res)
         results.append(decrypted_res)
 
     return results
 
-print("final result :", pipe(2, shots=20), "\n")
+print("final result :", pipe(5, shots=10), "\n")

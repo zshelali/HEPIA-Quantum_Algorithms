@@ -45,8 +45,6 @@ def init():
 
 init()
 
-print(GATE["T"])
-
 def qft(n, swap=True, inverse=False):
     """
     Build a Quantum Fourier Transform (QFT) circuit.
