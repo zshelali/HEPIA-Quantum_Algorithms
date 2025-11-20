@@ -166,9 +166,37 @@ def two_qubit_adder():
     return qc
 
 
+def to_standard(qc):
+    basis_gates = ["h", "s", "sdg", "cx", "x", "z", "t", "tdg", "p"]
+    qc_standard = transpile(
+        qc.decompose(), basis_gates=basis_gates, optimization_level=0
+    )
+    return qc_standard
+
+
+# Source - https://stackoverflow.com/questions/12988351/split-a-dictionary-in-half
+# Posted by Blckknght
+# Retrieved 2025-11-06, License - CC BY-SA 3.0
+import itertools
+
+
+def splitDict(d):
+    n = len(d) // 2  # length of smaller half
+    i = iter(d.items())  # alternatively, i = d.iteritems() works in Python 2
+
+    d1 = dict(itertools.islice(i, n))  # grab first n items
+    d2 = dict(i)  # grab the rest
+
+    return d1, d2
+
+
+### END OF SOURCE stackoverflow
+
+
 def random_circuit():
     """
-    Visualize circuit @ https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,1,%22H%22],[%22%E2%80%A2%22,1,1,%22X%22],[1,1,1,%22X%22],[1,1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[1,0,1]}
+    Visualize circuit @
+    https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,1,%22H%22],[%22%E2%80%A2%22,1,1,%22X%22],[1,1,1,%22X%22],[1,1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[1,0,1]}
     """
     qc = QuantumCircuit(4)
     qc.name = "Server circuit"
