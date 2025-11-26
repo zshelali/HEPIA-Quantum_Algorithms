@@ -17,12 +17,11 @@ import numpy as np
 from ciphertext import Ciphertext
 from server import Server
 
-
 class Client:
     def __init__(self):
         self.keys = {}
 
-    def load_int(self, val):
+    def load_int(self, val: int) -> QuantumCircuit:
         """
         Loads an unencrypted integer into a circuit
         """
@@ -34,7 +33,7 @@ class Client:
                 qc.x(i)
         return qc
 
-    def encrypt(self, psi, server, offset=0):
+    def encrypt(self, psi: int, server: Server, offset: int = 0) -> Ciphertext:
         """
         Returns Cipher(physical: QuantumCircuit, keys: dict)
         """
@@ -57,7 +56,7 @@ class Client:
                 physical.z(i)
         return Ciphertext(physical, keys)
 
-    def decrypt(self, psi_tilde):
+    def decrypt(self, psi_tilde: str) -> str:
         """
         Decrypts a measured state.
         For a classical Z-basis measurement, only the X mask affects the outcome,
@@ -70,13 +69,13 @@ class Client:
         return "".join(res)
 
     @staticmethod
-    def get_qubit_index(qc, i, n):
+    def get_qubit_index(qc, i: int, n: int) -> int:
         """
         Returns the index of a qubit inside a QuantumCircuit
         """
         return qc.find_bit(qc.data[i].qubits[n]).index
 
-    def update_key(self, qc):
+    def update_key(self, qc: QuantumCircuit):
         """
         Updates QOTP private keys for circuits containing only Clifford gates.
         Handles: h, s (p), and cx gates.
@@ -114,14 +113,7 @@ class Client:
                 self.keys[Client.get_qubit_index(qc, i, 1)] = aj, bj
                 print(f"✅ update key: encountered CNOT gate at index {i}\n\n")
 
-            # T gate
-            elif gate_name == "p" and np.isclose(gate_theta, np.pi / 4):
-                Server.non_clifford_handler(qc=qc, index=i)
-
-            # T_dg gate
-            elif gate_name == "p" and np.isclose(gate_theta, -np.pi / 4):
-                Server.non_clifford_handler(qc=qc, index=i)
-
+            
             # pauli gates 
             elif gate_name in ["x", "y", "z", "i", "id"]:
                 print(f"ℹ️ nothing updated: encountered Pauli {gate_name} gate at index {i}\n\n")
