@@ -1,8 +1,11 @@
+from typing import Tuple
 from qiskit import QuantumCircuit, transpile
+from qiskit.circuit import CircuitInstruction, gate
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error
 from math import pi
 import numpy as np
+import numpy.typing as npt
 
 
 def init():
@@ -40,7 +43,7 @@ def init():
 init()
 
 
-def qft(n, swap=True, inverse=False):
+def qft(n, swap=True, inverse=False) -> QuantumCircuit:
     """
     Build a Quantum Fourier Transform (QFT) circuit.
     The `inverse=False` here is qiskit's `inverse=True`.
@@ -125,7 +128,7 @@ def get_result_with_noise(qc):
     return simulator.run(compiled, shots=100).result().get_counts()
 
 
-def clifford(u):
+def clifford(u) -> dict[str, npt.NDArray]:
     """
     Returns uxu_dg and uzu_dg
     """
@@ -148,7 +151,7 @@ def clifford(u):
     return {"x_result": x_result, "z_result": z_result}
 
 
-def two_qubit_adder():
+def two_qubit_adder() -> QuantumCircuit:
     # TODO: universalize the function to take n odd and even.
     n = 4
     qc = QuantumCircuit(4, 2)
@@ -166,11 +169,16 @@ def two_qubit_adder():
     return qc
 
 
-def to_standard(qc):
-    basis_gates = ["h", "s", "sdg", "cx", "x", "z", "t", "tdg", "p"]
+def to_standard(qc: QuantumCircuit) -> QuantumCircuit:
+    """
+    Transpiles a circuit into a circuit composed of
+    only Clifford and T/T_dg gates.
+    """
+    basis_gates = ["h", "s", "sdg", "cx", "x", "z", "t", "tdg", "p", "pdg"]
     qc_standard = transpile(
         qc.decompose(), basis_gates=basis_gates, optimization_level=0
     )
+    print(qc_standard)
     return qc_standard
 
 
@@ -180,7 +188,7 @@ def to_standard(qc):
 import itertools
 
 
-def splitDict(d):
+def splitDict(d: dict) -> Tuple[dict, dict]:
     n = len(d) // 2  # length of smaller half
     i = iter(d.items())  # alternatively, i = d.iteritems() works in Python 2
 
@@ -193,7 +201,56 @@ def splitDict(d):
 ### END OF SOURCE stackoverflow
 
 
-def random_circuit():
+def is_t_gate(instruction) -> bool:
+    gate_theta = 0
+    if instruction.params:
+        gate_theta = instruction.params[0]
+    if instruction.name == "p" and np.isclose(gate_theta, np.pi / 4):
+        return True
+    return False
+
+
+def is_t_dg(instruction) -> bool:
+    gate_theta = 0
+    if instruction.params:
+        gate_theta = instruction.params[0]
+    if instruction.name == "p" and np.isclose(gate_theta, -np.pi / 4):
+        return True
+    return False
+
+
+def instruction_idx(qc: QuantumCircuit, instruction) -> int | list[int]:
+    """
+    Returns the index of an instruction.
+    If the instruction acts on multiple qubits,
+    returns a list of indices.
+    """
+    n = len(instruction.qubits)
+    if n == 0:
+        raise ValueError("instruction length is 0")
+    if n >= 1:
+        indices = [qc.find_bit(qubit).index for qubit in instruction.qubits]
+        if n == 1:
+            return indices[0]
+        return indices
+    return -2
+
+def has_t_gates(qc: QuantumCircuit) -> bool:
+    """
+    Returns True if the circuit contains at least one Non-Clifford gate.
+    """
+    for instruction in qc.data:
+        if not instruction.params:
+            continue
+        if instruction.name != "p":
+            continue
+        gate_theta = instruction.params[0]
+        if np.isclose(gate_theta, np.pi / 4) or np.isclose(gate_theta, -np.pi / 4):
+            return True
+    return False
+
+
+def random_circuit() -> QuantumCircuit:
     """
     Visualize circuit @
     https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,1,%22H%22],[%22%E2%80%A2%22,1,1,%22X%22],[1,1,1,%22X%22],[1,1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[1,0,1]}
