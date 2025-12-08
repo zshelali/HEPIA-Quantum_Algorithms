@@ -14,7 +14,6 @@ import random as random
 from qiskit.circuit.library import HGate
 import numpy as np
 
-from qotp import server
 import quantum_tools as qt
 
 from ciphertext import Ciphertext
@@ -59,19 +58,20 @@ class Client:
                 physical.z(i)
         return Ciphertext(physical, keys)
 
-    def decrypt(self, psi_tilde: str) -> str:
+    def decrypt(self, psi_tilde: str, offset: int = 0) -> str:
         """
         Decrypts a measured state.
         For a classical Z-basis measurement, only the X mask affects the outcome,
         as Z is only a phase that is invisible when measured.
         """
         res = []
-        for i, bit in enumerate(psi_tilde):
-            decrypted_bit = str((self.keys[i][0]) ^ int(bit))
+        for i, bit in enumerate(psi_tilde[::-1]):
+            a = self.keys[i + offset][0]
+            decrypted_bit = str(a ^ int(bit))
             res.append(decrypted_bit)
-        return "".join(res)
+        return "".join(res)[::-1]
 
-    def update_key(self, server_qc: QuantumCircuit, dummy_qubit_idx: int):
+    def update_key(self, server_qc: QuantumCircuit, dummy_qubit_idx: int, debug_mode: bool = False) -> QuantumCircuit:
         """
         Updates QOTP private keys for circuits containing only Clifford gates.
         Handles: h, s (p), and cx gates.
@@ -99,9 +99,9 @@ class Client:
             # Hadamard gate
             if gate_name == "h":
                 idx = q_indices[0]
-                a, b = self.keys[self.keys[0]]
+                a, b = self.keys[idx]
                 self.keys[idx] = b, a
-                print(f"🟢 update key: encountered H gate at index {idx}\n\n")
+                if debug_mode: print(f"🟢 update key: encountered H gate at index {idx}\n\n")
 
             # CNOT gate
             elif gate_name == "cx":
@@ -110,14 +110,14 @@ class Client:
                 aj, bj = self.keys[idx_2]
                 self.keys[idx_1] = ai, bi ^ bj
                 self.keys[idx_2] = ai ^ aj, bj
-                print(f"🟢 update key: encountered CNOT gate at indices control: {idx_1}, target = {idx_2}\n\n")
+                if debug_mode: print(f"🟢 update key: encountered CNOT gate at indices control: {idx_1}, target = {idx_2}\n\n")
 
             # S or P gate / S_dg or P_dg
             elif gate_name == "p" and (np.isclose(gate_theta, np.pi / 2) or np.isclose(gate_theta, -np.pi / 2)):
                 idx = q_indices[0]
                 a, b = self.keys[idx]
                 self.keys[idx] = a, a ^ b
-                print(f"🟢 update key: encountered P({gate_theta}) gate (pi/2) or (-pi/2) at index {idx}\n\n")
+                if debug_mode: print(f"🟢 update key: encountered P({gate_theta}) gate (pi/2) or (-pi/2) at index {idx}\n\n")
 
             # -------------------- #
             #
@@ -125,7 +125,7 @@ class Client:
             #
             # -------------------- #
 
-            elif qt.is_t_gate(op) or qt.is_t_dg(op):
+            elif qt.is_t_gate(op):
                 idx = q_indices[0]
                 a, b = self.keys[idx]
 
@@ -137,11 +137,33 @@ class Client:
 
                 new_qc.s(target_qubit_idx)
 
-                print(f"🔴 T-Gate at {idx}. a={a}. Correction applied to {target_qubit_idx}\n\n")
+                if needs_correction:
+                    self.keys[idx] = (a, b^ 1)
+
+                if debug_mode: print(f"🔴 t gate at {idx}. a={a}. Correction applied to {target_qubit_idx}\n\n")
+
+            elif qt.is_t_dg(op):
+                idx = q_indices[0]
+                a, b = self.keys[idx]
+
+                needs_correction = (a == 1)
+                if needs_correction:
+                    target_qubit_idx = idx
+                else:
+                    target_qubit_idx = dummy_qubit_idx
+
+                new_qc.sdg(target_qubit_idx)
+
+                if needs_correction:
+                    self.keys[idx] = (a, b^ 1)
+
+                if debug_mode: print(f"🔴 tdg Gate at {idx}. a={a}. Correction applied to {target_qubit_idx}\n\n")
+
 
             else:
-                print(f"🟡 unverified gate encountered: {gate_name} theta={gate_theta}\n\n")
+                if debug_mode: print(f"🟡 unverified gate encountered: {gate_name} theta={gate_theta}\n\n")
                 continue
 
         # print(f"Update key, current state:\n{self.keys}")
-        print("names: ", names)
+        if debug_mode: print("names: ", names)
+        return new_qc
