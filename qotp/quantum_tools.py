@@ -6,6 +6,8 @@ from qiskit_aer.noise import NoiseModel, depolarizing_error
 from math import pi
 import numpy as np
 import numpy.typing as npt
+from qiskit_ibm_runtime.fake_provider import FakeGeneva
+from qiskit.visualization import plot_histogram
 
 
 def init():
@@ -109,6 +111,15 @@ def get_result(qc, shots=100):
     simulator = AerSimulator()
     compiled = transpile(qc, simulator)
     return simulator.run(compiled, shots=shots).result().get_counts()
+
+
+def get_result_geneva(qc, shots=1024):
+    device_backend = FakeGeneva()
+    sim_geneva = AerSimulator.from_backend(device_backend)
+    tcirc = transpile(qc, sim_geneva)
+    result_noise = sim_geneva.run(tcirc, shots=shots).result()
+    counts_noise = result_noise.get_counts(0)
+    return counts_noise
 
 
 def get_result_with_noise(qc):

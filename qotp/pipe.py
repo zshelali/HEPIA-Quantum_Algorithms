@@ -1,4 +1,5 @@
-from numpy import full
+import matplotlib.pyplot as plt
+from qiskit.visualization import plot_histogram
 import quantum_tools as qt
 from qiskit import ClassicalRegister, QuantumCircuit
 from rich.traceback import install
@@ -81,29 +82,34 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
         inplace=True,
     )
 
-    print(f"\nBefore update: {merged_keys}")
+    if debug_mode:
+        print(f"\nBefore update: {merged_keys}")
+
     corrected_circuit = cl.update_key(
         server_qc=final_circuit, dummy_qubit_idx=dummy_idx, debug_mode=debug_mode
     )
-    print(f"After update: {cl.keys}")
+
+    if debug_mode:
+        print(f"After update: {cl.keys}")
 
     # measure end result
     corrected_circuit.measure(
         [k for k in range(offset, cipher_y.circuit.num_qubits + offset)], meas_reg
     )
 
+    corrected_circuit.draw("mpl", filename="./images/final_circuit.png", fold=-1)
+
     # fetch and decrypt measured result(s)
-    result_counts = qt.get_result(corrected_circuit)
-    print("counts:", result_counts)
-    for bitstring in result_counts:
-        print(f"decrypted: {cl.decrypt(bitstring, offset=offset)}")
-    # print("Final result: ", result_decrypted)
-    # corrected_circuit.draw("mpl", filename="./images/final_circuit.png", fold=-1)
+    result_counts = qt.get_result_geneva(corrected_circuit)
+    decrypted_counts = {}
+    if debug_mode:
+        print("counts:", result_counts)
+    for bitstring, count in result_counts.items():
+        decrypted_key = cl.decrypt(bitstring, offset=offset)
+        decrypted_counts[decrypted_key] = count
+    fig = plot_histogram(decrypted_counts)
+    fig.savefig("./images/histogram.png")
+    return decrypted_counts
 
-    # print(final_circuit.data[0].name)
 
-
-for i in range(20):
-    print(f"Iteration {i + 1}")
-    adder_pipe(3, 3, debug_mode=False)
-    print("------------------------------------------------------------")
+adder_pipe(2, 1, debug_mode=False)
