@@ -14,6 +14,7 @@ import random as random
 from qiskit.circuit.library import HGate
 import numpy as np
 
+from qotp import server
 import quantum_tools as qt
 
 from ciphertext import Ciphertext
@@ -70,57 +71,76 @@ class Client:
             res.append(decrypted_bit)
         return "".join(res)
 
-    def update_key(self, qc: QuantumCircuit):
+    def update_key(self, server_qc: QuantumCircuit, dummy_qubit_idx: int):
         """
         Updates QOTP private keys for circuits containing only Clifford gates.
         Handles: h, s (p), and cx gates.
         """
         names = []
+        new_qc = QuantumCircuit(*server_qc.qregs, *server_qc.cregs)
         # print(f"Before update, current state:\n{self.keys}")
-        for i in range(len(qc.data)):
-            gate_name = qc.data[i].name
-            print(gate_name)
-            gate_theta = 0
-            if qc.data[i].params:
-                gate_theta = qc.data[i].params[0]
+        for instruction in server_qc.data:
+            op = instruction.operation
+            qubits = instruction.qubits
+            clbits = instruction.clbits
+            q_indices = [server_qc.find_bit(q).index for q in qubits]
+            new_qc.append(op, qubits, clbits)
+            gate_name = op.name
+            gate_params = op.params
+            gate_theta = gate_params[0] if gate_params else 0
             names.append(gate_name)
+
+            # -------------------- #
+            #
+            # CLIFFORD GATES
+            #
+            # -------------------- #
 
             # Hadamard gate
             if gate_name == "h":
-                a, b = self.keys[qt.get_qubit_index(qc=qc, i=i, n=0)]
-                a, b = b, a
-                self.keys[qt.get_qubit_index(qc=qc, i=i, n=0)] = a, b
-                print(f"🟢 update key: encountered H gate at index {i}\n\n")
-
-            # S or P gate / S_dg or P_dg
-            elif gate_name == "p" and (np.isclose(gate_theta, np.pi / 2) or np.isclose(gate_theta, -np.pi / 2)):
-                a, b = self.keys[qt.get_qubit_index(qc=qc, i=i, n=0)]
-                a, b = a, a ^ b
-                self.keys[qt.get_qubit_index(qc=qc, i=i, n=0)] = a, b
-                print(f"🟢 update key: encountered P({gate_theta}) gate (pi/2) or (-pi/2) at index {i}\n\n")
+                idx = q_indices[0]
+                a, b = self.keys[self.keys[0]]
+                self.keys[idx] = b, a
+                print(f"🟢 update key: encountered H gate at index {idx}\n\n")
 
             # CNOT gate
             elif gate_name == "cx":
-                ai, bi = self.keys[qt.get_qubit_index(qc=qc, i=i, n=0)]
-                aj, bj = self.keys[qt.get_qubit_index(qc=qc, i=i, n=1)]
-                ai, bi = ai, bi ^ bj
-                aj, bj = ai ^ aj, bj
-                self.keys[qt.get_qubit_index(qc=qc, i=i, n=0)] = ai, bi
-                self.keys[qt.get_qubit_index(qc=qc, i=i, n=1)] = aj, bj
-                print(f"🟢 update key: encountered CNOT gate at index {i}\n\n")
+                idx_1, idx_2 = q_indices[0], q_indices[1]
+                ai, bi = self.keys[idx_1]
+                aj, bj = self.keys[idx_2]
+                self.keys[idx_1] = ai, bi ^ bj
+                self.keys[idx_2] = ai ^ aj, bj
+                print(f"🟢 update key: encountered CNOT gate at indices control: {idx_1}, target = {idx_2}\n\n")
 
-            elif gate_name == "swap":
-                print("🔀encountered swap, please handle this\n\n")
+            # S or P gate / S_dg or P_dg
+            elif gate_name == "p" and (np.isclose(gate_theta, np.pi / 2) or np.isclose(gate_theta, -np.pi / 2)):
+                idx = q_indices[0]
+                a, b = self.keys[idx]
+                self.keys[idx] = a, a ^ b
+                print(f"🟢 update key: encountered P({gate_theta}) gate (pi/2) or (-pi/2) at index {idx}\n\n")
 
-            elif qt.is_t_gate(qc.data[i]) or qt.is_t_dg(qc.data[i]):
-                print("🔴 t gate encountered, please handle this\n\n")
+            # -------------------- #
+            #
+            # NON-CLIFFORD GATES
+            #
+            # -------------------- #
 
-            # pauli gates and others
-            elif gate_name in ["x", "y", "z", "i", "id"]:
-                print(f"🟡 nothing updated: encountered Pauli {gate_name} gate at index {i}\n\n")
+            elif qt.is_t_gate(op) or qt.is_t_dg(op):
+                idx = q_indices[0]
+                a, b = self.keys[idx]
+
+                needs_correction = (a == 1)
+                if needs_correction:
+                    target_qubit_idx = idx
+                else:
+                    target_qubit_idx = dummy_qubit_idx
+
+                new_qc.s(target_qubit_idx)
+
+                print(f"🔴 T-Gate at {idx}. a={a}. Correction applied to {target_qubit_idx}\n\n")
 
             else:
-                print(f"🟡 unverified gate encountered: {gate_name} theta={gate_theta} at index {i}\n\n")
+                print(f"🟡 unverified gate encountered: {gate_name} theta={gate_theta}\n\n")
                 continue
 
         # print(f"Update key, current state:\n{self.keys}")
