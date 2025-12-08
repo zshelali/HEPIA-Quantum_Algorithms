@@ -154,7 +154,7 @@ def clifford(u) -> dict[str, npt.NDArray]:
 def two_qubit_adder() -> QuantumCircuit:
     # TODO: universalize the function to take n odd and even.
     n = 4
-    qc = QuantumCircuit(4, 2)
+    qc = QuantumCircuit(4)
     # qc.append(x, [0, 1])
     # qc.append(y, [2, 3])
     qc.append(qft(2, inverse=True, swap=False), [2, 3])
@@ -165,7 +165,7 @@ def two_qubit_adder() -> QuantumCircuit:
             qc.cp(theta=theta, control_qubit=i, target_qubit=j)
     qc.append(qft(2, inverse=False, swap=False), [2, 3])
 
-    qc.measure([2, 3], [0, 1])
+    # qc.measure([2, 3], [0, 1])
     return qc
 
 
@@ -174,11 +174,11 @@ def to_standard(qc: QuantumCircuit) -> QuantumCircuit:
     Transpiles a circuit into a circuit composed of
     only Clifford and T/T_dg gates.
     """
-    basis_gates = ["h", "s", "sdg", "cx", "x", "z", "t", "tdg", "p", "pdg"]
+    basis_gates = ["h", "s", "sdg", "cx", "x", "z", "t", "tdg", "p", "pdg", "bonsoir"]
     qc_standard = transpile(
         qc.decompose(), basis_gates=basis_gates, optimization_level=0
     )
-    print(qc_standard)
+    # print(qc_standard)
     return qc_standard
 
 
@@ -203,8 +203,11 @@ def splitDict(d: dict) -> Tuple[dict, dict]:
 
 def is_t_gate(instruction) -> bool:
     gate_theta = 0
-    if instruction.params:
-        gate_theta = instruction.params[0]
+    if instruction.name in ["t", "td"]:
+        return True
+    if not instruction.params:
+        return False
+    gate_theta = instruction.params[0]
     if instruction.name == "p" and np.isclose(gate_theta, np.pi / 4):
         return True
     return False
@@ -219,34 +222,86 @@ def is_t_dg(instruction) -> bool:
     return False
 
 
-def instruction_idx(qc: QuantumCircuit, instruction) -> int | list[int]:
+def get_qubit_index(
+    qc: QuantumCircuit, instruction=None, i: int | None = None, n: int | None = None
+) -> int | list[int]:
     """
-    Returns the index of an instruction.
-    If the instruction acts on multiple qubits,
-    returns a list of indices.
+    Returns the qubit index/indices from a quantum circuit.
+
+    Parameters:
+        qc: The quantum circuit
+        instruction: A circuit instruction (gate/operation). If provided, returns indices of all qubits it acts on.
+        i: Instruction position in qc.data. Must be used with parameter n.
+        n: Qubit position within the instruction. Must be used with parameter i.
+
+    Returns:
+        int: Single qubit index (when using i,n or when instruction acts on 1 qubit)
+        list[int]: Multiple qubit indices (when instruction acts on multiple qubits)
+
+    Raises:
+        ValueError: If both modes are provided, neither mode is provided, or instruction has no qubits
+
+    Examples:
+        # Get the 0th qubit from the 5th instruction
+        >>> idx = get_qubit_index(qc, i=5, n=0)
+
+        # Get all qubit indices that a gate acts on
+        >>> indices = get_qubit_index(qc, instruction=my_gate)
     """
-    n = len(instruction.qubits)
-    if n == 0:
-        raise ValueError("instruction length is 0")
-    if n >= 1:
-        indices = [qc.find_bit(qubit).index for qubit in instruction.qubits]
-        if n == 1:
-            return indices[0]
-        return indices
-    return -2
+    has_i_and_n = i is not None and n is not None
+    has_instruction = instruction is not None
+
+    if has_i_and_n and has_instruction:
+        raise ValueError(
+            "ambiguous inputs. provide either (i, n) or instruction, not both"
+        )
+    if not has_i_and_n and not has_instruction:
+        raise ValueError("must provide either (i, n) or instruction")
+
+    if has_i_and_n:
+        return qc.find_bit(qc.data[i].qubits[n]).index
+
+    elif has_instruction:
+        l = len(instruction.qubits)
+        if l == 0:
+            raise ValueError("instruction length is 0")
+        else:
+            indices = [qc.find_bit(qubit).index for qubit in instruction.qubits]
+            if l == 1:
+                return indices[0]
+            return indices
+    else:
+        raise ValueError("unreachable: validation failed")
+
+
+# def get_qubit_index(qc: QuantumCircuit, instruction) -> int | list[int]:
+#     """
+#     Returns the index of an instruction.
+#     If the instruction acts on multiple qubits,
+#     returns a list of indices.
+#     """
+#     n = len(instruction.qubits)
+#     if n == 0:
+#         raise ValueError("instruction length is 0")
+#     if n >= 1:
+#         indices = [qc.find_bit(qubit).index for qubit in instruction.qubits]
+#         if n == 1:
+#             return indices[0]
+#         return indices
+#     return -2
+
 
 def has_t_gates(qc: QuantumCircuit) -> bool:
     """
     Returns True if the circuit contains at least one Non-Clifford gate.
     """
     for instruction in qc.data:
-        if not instruction.params:
-            continue
-        if instruction.name != "p":
-            continue
-        gate_theta = instruction.params[0]
-        if np.isclose(gate_theta, np.pi / 4) or np.isclose(gate_theta, -np.pi / 4):
+        if instruction.name in ["t", "tdg"]:
             return True
+        if instruction.name == "p":
+            gate_theta = instruction.params[0]
+            if np.isclose(gate_theta, np.pi / 4) or np.isclose(gate_theta, -np.pi / 4):
+                return True
     return False
 
 
