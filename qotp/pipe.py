@@ -97,7 +97,9 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
         [k for k in range(offset, cipher_y.circuit.num_qubits + offset)], meas_reg
     )
 
-    corrected_circuit.draw("mpl", filename="./images/final_circuit.png", fold=-1)
+    filename = "./images/final_circuit.png"
+    corrected_circuit.draw("mpl", filename=filename, fold=-1)
+    print(f"Circuit saved at {filename}")
 
     # fetch and decrypt measured result(s)
     result_counts = qt.get_result_geneva(corrected_circuit)
@@ -108,7 +110,9 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
         decrypted_key = cl.decrypt(bitstring, offset=offset)
         decrypted_counts[decrypted_key] = count
     fig = plot_histogram(decrypted_counts)
-    fig.savefig("./images/histogram.png")
+    figname = "./images/histogram.png"
+    fig.savefig(figname)
+    print(f"Histogram saved at {figname}")
     return decrypted_counts
 
 
