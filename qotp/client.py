@@ -173,7 +173,6 @@ class Client:
                     )
                 continue
 
-        # print(f"Update key, current state:\n{self.keys}")
         if debug_mode:
             print("names: ", names)
         return new_qc
