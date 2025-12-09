@@ -20,17 +20,12 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     # convert and store server circuit to standard
     sv.circuit = qt.to_standard(sv.circuit)
 
-    # execute magic state distillation
-    # keep a copy of the original circuit for the key updating routine
-    # old_circuit = deepcopy(sv.circuit)
-    # sv.magic_state_builder()
-
     # encrypt x and y
     cipher_x = cl.encrypt(a, sv)
     offset = cipher_x.circuit.num_qubits
     cipher_y = cl.encrypt(b, sv, offset)
 
-    # merge keys
+    # merge keys using the offset
     merged_keys = {}
     for i in range(cipher_x.circuit.num_qubits):
         merged_keys[i] = cipher_x.keys[i]
@@ -41,7 +36,6 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     cl.keys = deepcopy(merged_keys)
 
     # add encrypted x,y states and the classical registers to the server circuit
-    #
     total_qubits = cipher_x.circuit.num_qubits + cipher_y.circuit.num_qubits
 
     final_circuit = QuantumCircuit(total_qubits + 1)  # +1 for dummy ancilla
@@ -51,8 +45,10 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     custom_gate.name = "input gate"
     final_circuit.append(custom_gate, [k for k in range(total_qubits)])
 
-    # --- FIX STARTS HERE --- (SOURCE: GOOGLE GEMINI)
+    # the following lines fix a bug that caused a crash due to
+    # registers having the same names when added automatically
 
+    # --- FIX STARTS HERE --- (SOURCE: GOOGLE GEMINI)
     # 1. Track existing names to avoid "q" collision
     existing_q_names = {r.name for r in final_circuit.qregs}
 
@@ -69,10 +65,9 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
         if creg.name not in existing_c_names:
             final_circuit.add_register(creg)
             existing_c_names.add(creg.name)
-
     # --- FIX ENDS HERE ---
 
-    # measurement register
+    # creating and adding the measurement register to the final circuit
     meas_reg = ClassicalRegister(cipher_y.circuit.num_qubits, "meas")
     final_circuit.add_register(meas_reg)
 
@@ -85,6 +80,7 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     if debug_mode:
         print(f"\nBefore update: {merged_keys}")
 
+    # update keys according to the circuit in the server
     corrected_circuit = cl.update_key(
         server_qc=final_circuit, dummy_qubit_idx=dummy_idx, debug_mode=debug_mode
     )
