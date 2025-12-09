@@ -1,0 +1,109 @@
+
+Before update: {0: (0, 1), 1: (1, 0), 2: (1, 0), 3: (1, 0)}
+🟡 unverified gate encountered: input gate theta=0
+
+
+🟢 update key: encountered P(1.5707963267948966) gate (pi/2) or (-pi/2) at index 0
+
+
+🟢 update key: encountered P(1.5707963267948966) gate (pi/2) or (-pi/2) at index 1
+
+
+🟢 update key: encountered H gate at index 3
+
+
+🟡 unverified gate encountered: barrier theta=0
+
+
+🔴 t gate at 3. a=0. Correction applied to 4
+
+
+🟢 update key: encountered CNOT gate at indices control: 3, target = 2
+
+
+🔴 tdg Gate at 2. a=1. Correction applied to 2
+
+
+🟢 update key: encountered CNOT gate at indices control: 3, target = 2
+
+
+🔴 t gate at 2. a=1. Correction applied to 2
+
+
+🟢 update key: encountered H gate at index 2
+
+
+🟡 unverified gate encountered: barrier theta=0
+
+
+🟢 update key: encountered CNOT gate at indices control: 0, target = 2
+
+
+🟢 update key: encountered P(-1.5707963267948966) gate (pi/2) or (-pi/2) at index 2
+
+
+🟢 update key: encountered CNOT gate at indices control: 0, target = 2
+
+
+🔴 t gate at 0. a=0. Correction applied to 4
+
+
+🟢 update key: encountered CNOT gate at indices control: 0, target = 3
+
+
+🟢 update key: encountered P(1.5707963267948966) gate (pi/2) or (-pi/2) at index 2
+
+
+🔴 tdg Gate at 3. a=0. Correction applied to 4
+
+
+🟢 update key: encountered CNOT gate at indices control: 0, target = 3
+
+
+🔴 t gate at 3. a=0. Correction applied to 4
+
+
+🟢 update key: encountered CNOT gate at indices control: 1, target = 3
+
+
+🟢 update key: encountered P(-1.5707963267948966) gate (pi/2) or (-pi/2) at index 3
+
+
+🟢 update key: encountered CNOT gate at indices control: 1, target = 3
+
+
+🟢 update key: encountered P(1.5707963267948966) gate (pi/2) or (-pi/2) at index 3
+
+
+🟡 unverified gate encountered: barrier theta=0
+
+
+🟢 update key: encountered H gate at index 2
+
+
+🔴 tdg Gate at 3. a=0. Correction applied to 4
+
+
+🟢 update key: encountered CNOT gate at indices control: 3, target = 2
+
+
+🔴 t gate at 2. a=1. Correction applied to 2
+
+
+🟢 update key: encountered CNOT gate at indices control: 3, target = 2
+
+
+🔴 tdg Gate at 2. a=1. Correction applied to 2
+
+
+🟡 unverified gate encountered: barrier theta=0
+
+
+🟢 update key: encountered H gate at index 3
+
+
+names:  ['input gate', 'p', 'p', 'h', 'barrier', 'p', 'cx', 'p', 'cx', 'p', 'h', 'barrier', 'cx', 'p', 'cx', 'p', 'cx', 'p', 'p', 'cx', 'p', 'cx', 'p', 'cx', 'p', 'barrier', 'h', 'p', 'cx', 'p', 'cx', 'p', 'barrier', 'h']
+After update: {0: (0, 1), 1: (1, 0), 2: (1, 0), 3: (0, 0)}
+Circuit saved at ./images/final_circuit.png
+counts: {'01': 10, '00': 40, '11': 26, '10': 948}
+Histogram saved at ./images/histogram.png
