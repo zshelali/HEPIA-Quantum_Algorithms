@@ -41,3 +41,5 @@ adder_pipe(2, 1, debug_mode=False)
 Here we calculate $(2 + 1) \bmod 4 = 3$.
 
 As we only use two qubits per input, one should only use 2-bit numbers.
+
+You can also find some example outputs in `qotp/example_outputs`.
