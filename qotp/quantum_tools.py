@@ -1,13 +1,11 @@
 from typing import Tuple
 from qiskit import QuantumCircuit, transpile
-from qiskit.circuit import CircuitInstruction, gate
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error
 from math import pi
 import numpy as np
 import numpy.typing as npt
 from qiskit_ibm_runtime.fake_provider import FakeGeneva
-from qiskit.visualization import plot_histogram
 
 
 def init():

@@ -1,6 +1,5 @@
 from qiskit import QuantumCircuit
 import random as random
-from qiskit.circuit.library import HGate
 import numpy as np
 
 import quantum_tools as qt

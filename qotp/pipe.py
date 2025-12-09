@@ -1,9 +1,9 @@
-import matplotlib.pyplot as plt
 from qiskit.visualization import plot_histogram
 import quantum_tools as qt
 from qiskit import ClassicalRegister, QuantumCircuit
 from rich.traceback import install
 from copy import deepcopy
+import os
 
 from client import Client
 from server import Server
@@ -13,6 +13,8 @@ qt.init()
 
 
 def adder_pipe(a: int, b: int, debug_mode: bool = False):
+    if not os.path.exists("./images"):
+        os.makedirs("./images")
     # create server with two_qubit_adder, and client
     sv = Server(qt.two_qubit_adder())
     cl = Client()
