@@ -1,12 +1,43 @@
-# SHOR:
+# QOTP Usage:
 
-Working
+> [!WARNING]
+> Only tested with Python 3.10.18 and 3.10.19
 
-# Grover:
+1. Create a virtual environment:
 
-Working
+```bash
+python -m venv venv
+source venv/bin/activate
+```
 
-# QOTP:
+You can also use pyenv.
 
-QFHE now working, can add two 2-bit numbers.
-Result is mod 4.
+2. Install requirements (make sure that you are at the root of the project):
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+3. Run the experiment:
+
+```bash
+python qotp/pipe.py
+```
+
+The result of the calculation should be $(x + y) \% 4$.
+
+You can verify the result by checking `images/histogram.png`.
+The results are in binary.
+
+You can also take a look at the circuit at `images/final_circuit.png`.
+
+To try another calculation, you can edit the last line in `pipe.py`:
+
+```python
+adder_pipe(2, 1, debug_mode=False)
+```
+
+Here we calculate $(2 + 1) \% 4 = 3$.
+
+As we only use two qubits per input, one should only use 2-bit numbers.
