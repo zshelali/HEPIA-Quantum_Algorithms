@@ -25,7 +25,7 @@ pip install -r requirements.txt
 python qotp/pipe.py
 ```
 
-The result of the calculation should be $(x + y) \% 4$.
+The result of the calculation should be $(x + y) \bmod 4$.
 
 You can verify the result by checking `images/histogram.png`.
 The results are in binary.
@@ -38,6 +38,6 @@ To try another calculation, you can edit the last line in `pipe.py`:
 adder_pipe(2, 1, debug_mode=False)
 ```
 
-Here we calculate $(2 + 1) \% 4 = 3$.
+Here we calculate $(2 + 1) \bmod 4 = 3$.
 
 As we only use two qubits per input, one should only use 2-bit numbers.
