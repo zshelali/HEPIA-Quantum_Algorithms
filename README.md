@@ -15,7 +15,7 @@ source venv/bin/activate
 
 You can also use pyenv.
 
-2. Install requirements (make sure that you are at the root of the project, outside of qotp/):
+2. Install requirements (make sure that you are at the root of the project, outside qotp/):
 
 ```bash
 pip install --upgrade pip
