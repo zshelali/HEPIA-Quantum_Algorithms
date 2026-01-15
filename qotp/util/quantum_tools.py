@@ -1,14 +1,11 @@
 from typing import Tuple
 from qiskit import QuantumCircuit, transpile
-from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel, depolarizing_error
 from math import pi
 import numpy as np
 import numpy.typing as npt
-from qiskit_ibm_runtime.fake_provider import FakeGeneva
 
 
-def init():
+def init_gate():
     global GATE
     GATE = {
         "I": np.array([[1, 0], [0, 1]], complex),
@@ -40,106 +37,17 @@ def init():
     }
 
 
-init()
+init_gate()
 
 
-def qft(n, swap=True, inverse=False) -> QuantumCircuit:
+def clifford_matrix(u) -> dict[str, npt.NDArray]:
     """
-    Build a Quantum Fourier Transform (QFT) circuit.
-    The `inverse=False` here is qiskit's `inverse=True`.
-
-    Args:
-        n (int): Number of qubits.
-        swap (bool): If True, add final swap gates to reverse qubit order
-            (standard QFT layout). If False, output is in bit-reversed order.
-        inverse (bool): If True, construct the inverse QFT (IQFT) by using
-            negative phase angles.
-
-    Returns:
-        QuantumCircuit: Qiskit QuantumCircuit implementing the QFT or IQFT
-        on n qubits.
-
-    Example:
-        >>> qft(2, inverse=False).draw(output="mpl", filename="my_qft.png", fold=False)
-
-    """
-    qc = QuantumCircuit(n)
-    qc.name = "QFT"
-    for current in range(n):
-        qc.barrier()
-        qc.h(current)
-        for others in range(current + 1, n):
-            qc.cp(
-                theta=-2 * pi / 2 ** (others - current + 1),
-                control_qubit=others,
-                target_qubit=current,
-            )
-
-    if swap:
-        for j in range(n // 2):
-            qc.swap(j, n - 1 - j)
-
-    if inverse:
-        inverted_qc = qc.inverse()
-        return inverted_qc
-
-    return qc
-
-
-def get_result(qc, shots=100):
-    """
-    Simulate a quantum circuit and return its measurement outcomes.
-
-    Args:
-        qc (QuantumCircuit): The quantum circuit to simulate.
-
-    Returns:
-        dict: A dictionary mapping bitstrings to their measured counts
-        after 100 simulation shots.
-
-    Example:
-        >>> counts = get_result(my_circuit)
-        >>> print(counts)
-        {'00': 51, '11': 49}
-
-    Notes:
-        The circuit is transpiled for the AerSimulator backend before execution.
-        Adjust 'shots' or backend parameters as needed for higher precision.
-    """
-    simulator = AerSimulator()
-    compiled = transpile(qc, simulator)
-    return simulator.run(compiled, shots=shots).result().get_counts()
-
-
-def get_result_geneva(qc, shots=1024):
-    device_backend = FakeGeneva()
-    sim_geneva = AerSimulator.from_backend(device_backend)
-    tcirc = transpile(qc, sim_geneva)
-    result_noise = sim_geneva.run(tcirc, shots=shots).result()
-    counts_noise = result_noise.get_counts(0)
-    return counts_noise
-
-
-def get_result_with_noise(qc):
-    # https://quantum.cloud.ibm.com/docs/en/guides/build-noise-models
-    error = depolarizing_error(1e-3, 1)  # (errreur qubit,nombre de qubit impacté)
-    noise_model = NoiseModel()
-    noise_model.add_all_qubit_quantum_error(
-        error,
-        [
-            "x",
-            "h",
-            "z",
-        ],
-    )
-    simulator = AerSimulator(noise_model=noise_model)
-    compiled = transpile(qc, simulator)
-    return simulator.run(compiled, shots=100).result().get_counts()
-
-
-def clifford(u) -> dict[str, npt.NDArray]:
-    """
-    Returns uxu_dg and uzu_dg
+    For 1 qubit matrices only.
+    Returns UXU_dg and UZU_dg.
+    If the output matrix is c*P
+    with P in {X,Y,Z,I}
+    and c a constant generally in {i, -i, 1, -1}
+    then the matrix is Clifford.
     """
     u_dg = u.conj().T
     x_result = 0
@@ -158,24 +66,6 @@ def clifford(u) -> dict[str, npt.NDArray]:
         raise ValueError("Unsupported gate size")
 
     return {"x_result": x_result, "z_result": z_result}
-
-
-def two_qubit_adder() -> QuantumCircuit:
-    # TODO: universalize the function to take n odd and even.
-    n = 4
-    qc = QuantumCircuit(4)
-    # qc.append(x, [0, 1])
-    # qc.append(y, [2, 3])
-    qc.append(qft(2, inverse=True, swap=False), [2, 3])
-
-    for i in range(n):
-        for j in range(i + 2, n):
-            theta = 2 ** (i) * np.pi / (2 ** (j - (n // 2)))
-            qc.cp(theta=theta, control_qubit=i, target_qubit=j)
-    qc.append(qft(2, inverse=False, swap=False), [2, 3])
-
-    # qc.measure([2, 3], [0, 1])
-    return qc
 
 
 def to_standard(qc: QuantumCircuit) -> QuantumCircuit:
@@ -298,32 +188,3 @@ def get_qubit_index(
 #             return indices[0]
 #         return indices
 #     return -2
-
-
-def has_t_gates(qc: QuantumCircuit) -> bool:
-    """
-    Returns True if the circuit contains at least one Non-Clifford gate.
-    """
-    for instruction in qc.data:
-        if instruction.name in ["t", "tdg"]:
-            return True
-        if instruction.name == "p":
-            gate_theta = instruction.params[0]
-            if np.isclose(gate_theta, np.pi / 4) or np.isclose(gate_theta, -np.pi / 4):
-                return True
-    return False
-
-
-def random_circuit() -> QuantumCircuit:
-    """
-    Visualize circuit @
-    https://algassert.com/quirk#circuit={%22cols%22:[[%22X%22,1,%22H%22],[%22%E2%80%A2%22,1,1,%22X%22],[1,1,1,%22X%22],[1,1,%22H%22],[%22Measure%22,%22Measure%22,%22Measure%22,%22Measure%22],[%22Chance4%22]],%22init%22:[1,0,1]}
-    """
-    qc = QuantumCircuit(4)
-    qc.name = "Server circuit"
-    qc.x(0)
-    qc.h(2)
-    qc.cx(0, 3)
-    qc.x(3)
-    qc.h(2)
-    return qc

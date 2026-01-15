@@ -1,26 +1,34 @@
 from qiskit.visualization import plot_histogram
-import quantum_tools as qt
 from qiskit import ClassicalRegister, QuantumCircuit
 from rich.traceback import install
 from copy import deepcopy
 import os
 
-from client import Client
-from server import Server
+from util import two_qubit_adder, to_standard, get_result_geneva
+
+from .client import Client
+from .server import Server
 
 install()
-qt.init()
 
 
 def adder_pipe(a: int, b: int, debug_mode: bool = False):
     if not os.path.exists("./images"):
         os.makedirs("./images")
     # create server with two_qubit_adder, and client
-    sv = Server(qt.two_qubit_adder())
+    sv = Server(two_qubit_adder())
     cl = Client()
 
     # convert and store server circuit to standard
-    sv.circuit = qt.to_standard(sv.circuit)
+    filename = "./images/original_circuit.png"
+    sv.circuit.draw("mpl", filename=filename, fold=-1)
+    print(f"Circuit saved at {filename}")
+
+    sv.circuit = to_standard(sv.circuit)
+
+    filename = "./images/standardized_circuit.png"
+    sv.circuit.draw("mpl", filename=filename, fold=-1)
+    print(f"Circuit saved at {filename}")
 
     # encrypt x and y
     cipher_x = cl.encrypt(a, sv)
@@ -44,6 +52,7 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     dummy_idx = total_qubits
 
     custom_gate = cipher_y.circuit ^ cipher_x.circuit
+    # NOTE: is this necessary?
     custom_gate.name = "input gate"
     final_circuit.append(custom_gate, [k for k in range(total_qubits)])
 
@@ -82,7 +91,7 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     if debug_mode:
         print(f"\nBefore update: {merged_keys}")
 
-    # update keys according to the circuit in the server
+    # update keys routine according to the circuit in the server
     corrected_circuit = cl.update_key(
         server_qc=final_circuit, dummy_qubit_idx=dummy_idx, debug_mode=debug_mode
     )
@@ -100,7 +109,7 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
     print(f"Circuit saved at {filename}")
 
     # fetch and decrypt measured result(s)
-    result_counts = qt.get_result_geneva(corrected_circuit)
+    result_counts = get_result_geneva(corrected_circuit)
     decrypted_counts = {}
     if debug_mode:
         print("counts:", result_counts)
@@ -108,10 +117,7 @@ def adder_pipe(a: int, b: int, debug_mode: bool = False):
         decrypted_key = cl.decrypt(bitstring, offset=offset)
         decrypted_counts[decrypted_key] = count
     fig = plot_histogram(decrypted_counts)
-    figname = "./images/histogram.png"
-    fig.savefig(figname)
-    print(f"Histogram saved at {figname}")
+    filename = "./images/histogram.png"
+    fig.savefig(filename)
+    print(f"Histogram saved at {filename}")
     return decrypted_counts
-
-
-adder_pipe(2, 1, debug_mode=False)

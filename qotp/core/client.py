@@ -2,10 +2,10 @@ from qiskit import QuantumCircuit
 import random as random
 import numpy as np
 
-import quantum_tools as qt
+from util import is_t_gate, is_t_dg
 
-from ciphertext import Ciphertext
-from server import Server
+from .ciphertext import Ciphertext
+from .server import Server
 
 
 class Client:
@@ -125,7 +125,7 @@ class Client:
             #
             # -------------------- #
 
-            elif qt.is_t_gate(op):
+            elif is_t_gate(op):
                 idx = q_indices[0]
                 a, b = self.keys[idx]
 
@@ -145,7 +145,7 @@ class Client:
                         f"🔴 t gate at {idx}. a={a}. Correction applied to {target_qubit_idx}\n\n"
                     )
 
-            elif qt.is_t_dg(op):
+            elif is_t_dg(op):
                 idx = q_indices[0]
                 a, b = self.keys[idx]
 
