@@ -1,3 +1,6 @@
+The main project is in qotp/
+the rest was just experimentation/learning.
+
 # QOTP Usage:
 
 > [!WARNING]
