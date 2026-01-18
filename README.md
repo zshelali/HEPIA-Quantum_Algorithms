@@ -25,7 +25,7 @@ pip install -r requirements.txt
 3. Run the experiment:
 
 ```bash
-python qotp/pipe.py
+python qotp/main.py
 ```
 
 The result of the calculation should be $(x + y) \bmod 4$.
@@ -35,7 +35,7 @@ The results are in binary.
 
 You can also take a look at the circuit at `images/final_circuit.png`.
 
-To try another calculation, you can edit the last line in `pipe.py`:
+To try another calculation, you can edit the line in `main.py`:
 
 ```python
 adder_pipe(2, 1, debug_mode=False)
