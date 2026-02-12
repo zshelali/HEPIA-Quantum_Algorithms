@@ -1,10 +1,22 @@
 import Grover as g
 
-target = 74
-nb_qubits = 7
-algo = g.grover(nb_qubits, target)
-result = g.get_result_with_noise(algo)
 
-sorted_items = sorted(result.items(), key=lambda x: x[0])
+# target and list 1:
+my_list1 = [5, 12, 9, 74]
+target1 = 74
 
-g.plot_grover_results(sorted_items, target, nb_qubits)
+algo1 = g.grover_arr(target1, my_list1)
+result1 = g.get_result(algo1)
+
+print(f"result1: {result1}")
+# should print 3
+
+# target and list 2:
+my_list2 = [1, 100, 23, 2, 3, 85, 22]
+target2 = 3
+
+algo2 = g.grover_arr(target2, my_list2)
+result2 = g.get_result(algo2)
+
+print(f"result2: {result2}")
+# should print 4

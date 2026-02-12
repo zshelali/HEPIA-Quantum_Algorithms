@@ -1,10 +1,10 @@
-
 import matplotlib.pyplot as plt
 from qiskit import QuantumCircuit
 from qiskit import transpile
+from qiskit.transpiler import target
 from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error
-from math import floor, pi,sqrt, ceil, log2
+from math import floor, pi, sqrt, ceil, log2
 
 
 def get_result(qc):
@@ -49,33 +49,34 @@ def plot_grover_results(sorted_items, target, nb_qubits):
     plt.tight_layout()
     plt.show()
 
+
 def load_array(arr):
-    """"
+    """ "
     Loads an array into a cicruit
 
-    Upon measuring with Qiskit, the result will look like: |value> ⊗ |index>  
+    Upon measuring with Qiskit, the result will look like: |value> ⊗ |index>
 
     Parameters
     ----------
 
     qc: QuantumCircuit
         Target quantum circuit, on which the array will be loaded
-    
+
     arr: List[int]
         Array to load
     """
     arr_length = len(arr)
     if arr_length > 0:
         index_qubits = ceil(log2(arr_length))
-        value_qubits = ceil(log2(max(arr) + 1)) 
+        value_qubits = ceil(log2(max(arr) + 1))
         qc = QuantumCircuit(ceil(log2(arr_length)) + ceil(log2(max(arr) + 1)))
     else:
         return QuantumCircuit()
     control_indices = []
-    assert(qc.num_qubits == index_qubits + value_qubits)
+    assert qc.num_qubits == index_qubits + value_qubits
     for q, o in enumerate(arr):
-        bin_q = format(q, f"0{index_qubits}b")[::-1] # index
-        bin_o = format(o, f"0{value_qubits}b")[::-1] # output
+        bin_q = format(q, f"0{index_qubits}b")[::-1]  # index
+        bin_o = format(o, f"0{value_qubits}b")[::-1]  # output
         for index1, char1 in enumerate(bin_o):
             if char1 == "1":
                 for index2, char2 in enumerate(bin_q):
@@ -83,7 +84,7 @@ def load_array(arr):
                         control_indices.append(index2)
                 for ones in control_indices:
                     qc.x(ones)
-                qc.mcx([xyz for xyz in range(index_qubits)], index1+index_qubits)
+                qc.mcx([xyz for xyz in range(index_qubits)], index1 + index_qubits)
                 for ones in control_indices:
                     qc.x(ones)
                 control_indices = []
@@ -138,6 +139,40 @@ def oracle(nb_qubits: int, value: int) -> QuantumCircuit:
     qc.barrier()
 
     return qc
+
+
+def oracle_arr(value: int, arr: list[int]) -> QuantumCircuit:
+    arr_length = len(arr)
+    if arr_length > 0:
+        index_qubits = ceil(log2(arr_length))
+        value_qubits = ceil(log2(max(arr) + 1))
+        qc = QuantumCircuit(ceil(log2(arr_length)) + ceil(log2(max(arr) + 1)))
+        val_bin = format(value, f"0{value_qubits}b")
+    else:
+        return QuantumCircuit()
+
+    n_idx = []
+
+    qc.append(load_array(arr), range(index_qubits + value_qubits))
+
+    for index, char in enumerate(reversed(val_bin)):
+        if char == "0":
+            qc.x(index + index_qubits)
+            n_idx.append(index)
+    last_qubit_idx = index_qubits + value_qubits - 1
+    qc.h(last_qubit_idx)
+    qc.mcx(
+        [k for k in range(index_qubits, last_qubit_idx)],
+        last_qubit_idx,
+    )
+    qc.h(last_qubit_idx)
+    for x_value in n_idx:
+        qc.x(x_value + index_qubits)
+
+    qc.append(load_array(arr).inverse(), range(index_qubits + value_qubits))
+
+    return qc
+
 
 def diffusion(nb_qubits):
     """
@@ -227,9 +262,24 @@ def grover(nb_qubits: int, x: int):
 
     qc.measure_all()
 
-    simulator = AerSimulator()
-    circ = transpile(qc, simulator)
-    result = simulator.run(circ).result()
-    counts = result.get_counts(circ)
+    return qc
 
-    return counts
+
+def grover_arr(tar, arr):
+    n_idx = ceil(log2(len(arr)))
+    n_val = ceil(log2(max(arr) + 1))
+    total_qubits = n_idx + n_val
+    qc = QuantumCircuit(total_qubits)
+
+    for i in range(n_idx):
+        qc.h(i)
+    k = floor((pi / 4) * sqrt(len(arr)))  # optimal amount of operations
+    qc_oracle = oracle_arr(tar, arr)
+    qc_diffusion = diffusion(n_idx)
+    for j in range(k):
+        qc.append(qc_oracle, range(total_qubits))
+        qc.append(qc_diffusion, range(n_idx))
+
+    qc.measure_all()
+
+    return qc
